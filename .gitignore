@@ -1,0 +1,11 @@
+.build/
+.swiftpm/
+dist/
+release/
+.submax/
+.DS_Store
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+DerivedData/
+SubMax.app/
