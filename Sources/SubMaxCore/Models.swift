@@ -3,6 +3,7 @@ import Foundation
 public enum NodeProtocol: String, Codable, CaseIterable, Sendable {
     case trojan
     case vmess
+    case vless
 }
 
 public enum RunTrigger: String, Codable, CaseIterable, Sendable {

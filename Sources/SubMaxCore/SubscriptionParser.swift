@@ -79,6 +79,9 @@ public struct SubscriptionParser: Sendable {
         if line.hasPrefix("vmess://") {
             return parseVmess(line, sourceID: sourceID, fetchedAt: fetchedAt)
         }
+        if line.hasPrefix("vless://") {
+            return parseVless(line, sourceID: sourceID, fetchedAt: fetchedAt)
+        }
         return nil
     }
 
@@ -120,6 +123,29 @@ public struct SubscriptionParser: Sendable {
             protocolType: .vmess,
             displayName: name,
             host: payload.add,
+            port: port,
+            rawURI: line,
+            stableKey: Self.sha256(line),
+            createdAt: fetchedAt,
+            updatedAt: fetchedAt
+        )
+    }
+
+    private func parseVless(_ line: String, sourceID: UUID, fetchedAt: Date) -> NodeRecord? {
+        guard let components = URLComponents(string: line),
+              components.user?.isEmpty == false,
+              let host = components.host,
+              let port = components.port else {
+            return nil
+        }
+
+        let fragmentName = components.percentEncodedFragment?.removingPercentEncoding ?? components.fragment
+        let name = normalizedName(fragmentName, fallback: "VLESS \(host):\(port)")
+        return NodeRecord(
+            sourceID: sourceID,
+            protocolType: .vless,
+            displayName: name,
+            host: host,
             port: port,
             rawURI: line,
             stableKey: Self.sha256(line),

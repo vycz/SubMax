@@ -180,6 +180,8 @@ struct SingBoxConfigBuilder {
             proxy = try makeTrojanOutbound(node)
         case .vmess:
             proxy = try makeVmessOutbound(node)
+        case .vless:
+            proxy = try makeVlessOutbound(node)
         }
 
         let object: [String: Any] = [
@@ -271,6 +273,76 @@ struct SingBoxConfigBuilder {
                 outbound["transport"] = ["type": net]
             }
         }
+        return outbound
+    }
+
+    private func makeVlessOutbound(_ node: NodeRecord) throws -> [String: Any] {
+        guard let components = URLComponents(string: node.rawURI),
+              let uuid = components.user,
+              let host = components.host,
+              let port = components.port else {
+            throw ProbeRuntimeError.unsupportedNode("VLESS URI 缺少 UUID、主机或端口")
+        }
+
+        let query = Dictionary(uniqueKeysWithValues: (components.queryItems ?? []).map { ($0.name, $0.value ?? "") })
+        var outbound: [String: Any] = [
+            "type": "vless",
+            "tag": "proxy",
+            "server": host,
+            "server_port": port,
+            "uuid": uuid
+        ]
+
+        if let flow = query["flow"], !flow.isEmpty {
+            outbound["flow"] = flow
+        }
+
+        if let security = query["security"], security == "tls" || security == "reality" {
+            var tls: [String: Any] = [
+                "enabled": true,
+                "server_name": query["sni"]?.isEmpty == false ? query["sni"]! : host
+            ]
+            if let fingerprint = query["fp"], !fingerprint.isEmpty {
+                tls["utls"] = [
+                    "enabled": true,
+                    "fingerprint": fingerprint
+                ]
+            }
+            if security == "reality" {
+                guard let publicKey = query["pbk"], !publicKey.isEmpty else {
+                    throw ProbeRuntimeError.unsupportedNode("VLESS Reality URI 缺少 public key")
+                }
+                var reality: [String: Any] = [
+                    "enabled": true,
+                    "public_key": publicKey
+                ]
+                if let shortID = query["sid"], !shortID.isEmpty {
+                    reality["short_id"] = shortID
+                }
+                tls["reality"] = reality
+            }
+            outbound["tls"] = tls
+        }
+
+        switch query["type"] {
+        case "ws":
+            var transport: [String: Any] = ["type": "ws"]
+            if let path = query["path"], !path.isEmpty {
+                transport["path"] = path
+            }
+            if let hostHeader = query["host"], !hostHeader.isEmpty {
+                transport["headers"] = ["Host": hostHeader]
+            }
+            outbound["transport"] = transport
+        case "grpc":
+            outbound["transport"] = [
+                "type": "grpc",
+                "service_name": query["serviceName"] ?? query["path"] ?? ""
+            ]
+        default:
+            break
+        }
+
         return outbound
     }
 }

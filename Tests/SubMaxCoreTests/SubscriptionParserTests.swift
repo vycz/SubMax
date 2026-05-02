@@ -32,3 +32,19 @@ import Testing
     #expect(parsed.nodes.count == 1)
     #expect(parsed.nodes[0].displayName == "Trojan node.example.com:443")
 }
+
+@Test func parserSupportsBase64VlessRealitySubscription() throws {
+    let sourceID = UUID()
+    let vless = "vless://11111111-2222-3333-4444-555555555555@node.example.com:37794?encryption=none&flow=xtls-rprx-vision&fp=chrome&pbk=exampleRealityPublicKey&security=reality&sid=5b86e1cc&sni=www.example.com&spx=%2Fexample&type=tcp#reality-node"
+    let encoded = Data(vless.utf8).base64EncodedString()
+
+    let parsed = try SubscriptionParser().parse(sourceID: sourceID, body: encoded)
+
+    #expect(parsed.snapshot.rawLineCount == 1)
+    #expect(parsed.snapshot.parsedNodeCount == 1)
+    #expect(parsed.snapshot.invalidLineCount == 0)
+    #expect(parsed.nodes[0].protocolType == .vless)
+    #expect(parsed.nodes[0].displayName == "reality-node")
+    #expect(parsed.nodes[0].host == "node.example.com")
+    #expect(parsed.nodes[0].port == 37794)
+}
